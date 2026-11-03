@@ -635,4 +635,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+
+// console/testing handle
+window.koiPond = { state, ripples, fish, addRipple };
 })();
