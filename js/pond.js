@@ -3,8 +3,7 @@
 
 const canvas = document.getElementById('pond');
 let ctx;
-try { ctx = canvas.getContext('2d', { colorSpace: 'display-p3' }); } catch (e) { ctx = null; }
-if (!ctx) ctx = canvas.getContext('2d');
+ctx = canvas.getContext('2d', { alpha: false });
 const hint = document.getElementById('hint');
 const TAU = Math.PI * 2;
 const rand = (a, b) => a + Math.random() * (b - a);
@@ -134,17 +133,17 @@ function makeGlowSprite(color, r) {
 }
 
 function makePatches(palette, segs, halfW) {
-  const n = 2 + Math.floor(Math.random() * 3);
+  const n = 3 + Math.floor(Math.random() * 3);
   const slots = [];
   for (let i = 3; i < segs - 3; i++) slots.push(i);
   const out = [];
   for (let i = 0; i < n && slots.length; i++) {
     const idx = slots.splice(Math.floor(Math.random() * slots.length), 1)[0];
     if (out.some((p) => Math.abs(p.i - idx) < 2)) continue;
-    const r = halfW * rand(0.85, 1.5);
+    const r = halfW * rand(1.0, 1.7);
     out.push({
       i: idx,
-      side: rand(-0.28, 0.28),
+      side: rand(-0.4, 0.4),
       r,
       rot: rand(-0.4, 0.4),
       sprite: makePatchSprite(pick(palette.patches), r),
@@ -184,7 +183,7 @@ class Koi {
     this.len = rand(54, 96) * DPR;
     this.segs = 14;
     this.spacing = this.len / this.segs;
-    this.fat = rand(0.145, 0.175);
+    this.fat = rand(0.17, 0.2);
     this.baseSpeed = rand(24, 44) * DPR;
     this.speed = this.baseSpeed;
     this.turn = rand(-1, 1);
@@ -286,9 +285,15 @@ class Koi {
       left.push({ x: pts[i].x + nx * w, y: pts[i].y + ny * w });
       right.push({ x: pts[i].x - nx * w, y: pts[i].y - ny * w });
     }
-    path.moveTo(left[0].x, left[0].y);
-    for (const p of left) path.lineTo(p.x, p.y);
-    for (let i = this.segs; i >= 0; i--) path.lineTo(right[i].x, right[i].y);
+    const ring = left.concat(right.slice().reverse());
+    const n = ring.length;
+    const mid = (a, b) => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    let m0 = mid(ring[n - 1], ring[0]);
+    path.moveTo(m0.x, m0.y);
+    for (let i = 0; i < n; i++) {
+      const m = mid(ring[i], ring[(i + 1) % n]);
+      path.quadraticCurveTo(ring[i].x, ring[i].y, m.x, m.y);
+    }
     path.closePath();
     return path;
   }
@@ -304,7 +309,7 @@ class Koi {
     const tipB = { x: tail.x + Math.cos(ang - spread) * tl, y: tail.y + Math.sin(ang - spread) * tl };
     const notch = { x: tail.x + dx * tl * 0.42, y: tail.y + dy * tl * 0.42 };
     c.save();
-    c.globalAlpha = 0.72;
+    c.globalAlpha = 0.8;
     c.fillStyle = this.palette.base;
     c.beginPath();
     c.moveTo(tail.x, tail.y);
@@ -340,12 +345,13 @@ class Koi {
     const path = this.bodyPath(pts);
 
     // shadow on the pond floor
+    if (Q > 0) {
     c.save();
     c.translate((5 + this.depth * 7) * DPR, (9 + this.depth * 9) * DPR);
-    c.fillStyle = `rgba(4,38,38,${0.15 + this.depth * 0.08})`;
-    c.filter = `blur(${3 * DPR}px)`;
-    c.fill(path);
+    c.fillStyle = `rgba(4,38,38,${0.06 + this.depth * 0.03})`;
+    for (const o of [-2, 0, 2]) { c.save(); c.translate(o * DPR, o * DPR); c.fill(path); c.restore(); }
     c.restore();
+    }
 
     // tail fin
     this.drawTail(c, pts);
@@ -359,7 +365,7 @@ class Koi {
       drawFanFin(
         c,
         pec.x + nx * pecW * 0.55 * s, pec.y + ny * pecW * 0.55 * s,
-        fa, this.len * 0.26, 1.05, 0.5, this.finColor
+        fa, this.len * 0.3, 1.0, 0.62, this.finColor
       );
     }
     const pel = pts[8];
@@ -377,6 +383,7 @@ class Koi {
     c.clip(path);
 
     // scale rows
+    if (Q > 1) {
     c.strokeStyle = this.scaleStroke;
     c.lineWidth = Math.max(0.6, DPR * 0.8);
     for (let i = 2; i < this.segs - 1; i++) {
@@ -390,6 +397,7 @@ class Koi {
       }
     }
 
+    }
     // markings
     for (const pa of this.patches) {
       const pt = pts[pa.i];
@@ -399,10 +407,12 @@ class Koi {
       c.save();
       c.translate(pt.x + nx * pa.side * hw, pt.y + ny * pa.side * hw);
       c.rotate(pt.ang + pa.rot);
+      c.scale(1.5, 1);
       c.drawImage(pa.sprite, -R, -R, R * 2, R * 2);
       c.restore();
     }
 
+    if (Q > 0) {
     // sheen along the back
     const mid = pts[4];
     c.save();
@@ -413,9 +423,18 @@ class Koi {
     c.drawImage(this.sheen, -this.sheen.width / 2, -this.sheen.height / 2);
     c.restore();
 
+    }
+    // rounded-body shading: darker toward the edges
+    c.strokeStyle = 'rgba(0,40,40,0.16)';
+    c.lineWidth = this.halfW * 0.7;
+    c.stroke(path);
+    c.strokeStyle = 'rgba(0,40,40,0.10)';
+    c.lineWidth = this.halfW * 0.35;
+    c.stroke(path);
+
     // underwater tint, deeper fish sit further down
     c.fillStyle = `rgba(10,80,74,${0.05 + this.depth * 0.09})`;
-    c.fillRect(0, 0, W, H);
+    c.fill(path);
 
     c.restore();
 
@@ -509,48 +528,65 @@ let pads = [], flowers = [], petals = [], shrubs = [];
 class Pad {
   constructor(x, y, r) {
     this.x = x; this.y = y; this.r = r;
-    this.rot = rand(0, TAU);
-    this.notch = rand(0.4, 0.7);
-    this.shade = rand(-12, 12);
-  }
-  draw(c) {
-    const g = 58 + this.shade;
-    c.save();
-    c.translate(this.x, this.y);
-    c.rotate(this.rot);
-    // shadow
-    c.fillStyle = 'rgba(4,40,36,0.22)';
-    c.beginPath();
-    c.ellipse(4 * DPR, 7 * DPR, this.r, this.r * 0.92, 0, 0, TAU);
-    c.fill();
-    // pad
-    c.fillStyle = `rgb(${14 + this.shade},${g},${30 + this.shade})`;
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.arc(0, 0, this.r, this.notch / 2, TAU - this.notch / 2);
-    c.closePath();
-    c.fill();
-    // lighter center
-    const rg = c.createRadialGradient(0, 0, 0, 0, 0, this.r);
-    rg.addColorStop(0, 'rgba(110,190,120,0.30)');
-    rg.addColorStop(1, 'rgba(110,190,120,0)');
-    c.fillStyle = rg;
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.arc(0, 0, this.r, this.notch / 2, TAU - this.notch / 2);
-    c.closePath();
-    c.fill();
-    // veins
-    c.strokeStyle = 'rgba(6,32,18,0.55)';
-    c.lineWidth = Math.max(1, this.r * 0.03);
-    for (let i = 0; i < 9; i++) {
-      const a = this.notch / 2 + 0.25 + (i / 9) * (TAU - this.notch - 0.5);
+    const notch = rand(0.35, 0.65), rot = rand(0, TAU), sh = rand(-1, 1);
+    const R = Math.ceil(r * 1.5);
+    const sp = document.createElement('canvas');
+    sp.width = sp.height = R * 2;
+    const c = sp.getContext('2d');
+    c.translate(R, R);
+    c.rotate(rot);
+    const edge = (rr) => {
       c.beginPath();
       c.moveTo(0, 0);
-      c.lineTo(Math.cos(a) * this.r * 0.92, Math.sin(a) * this.r * 0.92);
+      const a0 = notch / 2, a1 = TAU - notch / 2, N = 48;
+      for (let i = 0; i <= N; i++) {
+        const a = a0 + (a1 - a0) * i / N;
+        const w = 1 + Math.sin(a * 7 + sh * 3) * 0.018 + Math.sin(a * 13) * 0.01;
+        c.lineTo(Math.cos(a) * rr * w, Math.sin(a) * rr * w);
+      }
+      c.closePath();
+    };
+    // soft shadow on the water
+    c.save();
+    c.translate(r * 0.09, r * 0.14);
+    c.fillStyle = 'rgba(2,45,38,0.10)';
+    for (const k of [1.12, 1.06, 1.0]) { edge(r * k); c.fill(); }
+    c.restore();
+    // body gradient: lit centre, deep rim
+    const g = c.createRadialGradient(-r * 0.25, -r * 0.25, r * 0.05, 0, 0, r);
+    g.addColorStop(0, `rgb(${96 + sh * 10},${176 + sh * 12},${86})`);
+    g.addColorStop(0.55, `rgb(${40 + sh * 8},${122 + sh * 10},${60})`);
+    g.addColorStop(1, `rgb(${12},${70 + sh * 8},${44})`);
+    c.fillStyle = g;
+    edge(r); c.fill();
+    c.save(); edge(r); c.clip();
+    // veins, slightly curved
+    c.strokeStyle = 'rgba(190,235,150,0.30)';
+    c.lineWidth = Math.max(1, r * 0.018);
+    for (let i = 0; i < 14; i++) {
+      const a = notch / 2 + 0.15 + (i / 13) * (TAU - notch - 0.3);
+      c.beginPath(); c.moveTo(0, 0);
+      c.quadraticCurveTo(Math.cos(a + 0.08) * r * 0.5, Math.sin(a + 0.08) * r * 0.5, Math.cos(a) * r, Math.sin(a) * r);
       c.stroke();
     }
+    // dark rim + lit upper edge
+    c.strokeStyle = 'rgba(4,40,26,0.45)'; c.lineWidth = r * 0.07; edge(r); c.stroke();
     c.restore();
+    c.strokeStyle = 'rgba(200,255,200,0.22)'; c.lineWidth = Math.max(1, r * 0.02);
+    c.beginPath(); c.arc(0, 0, r * 0.96, Math.PI * 0.9, Math.PI * 1.45); c.stroke();
+    // water droplets
+    for (let i = 0; i < 4; i++) {
+      const a = rand(0, TAU), d = rand(0.15, 0.7) * r, dr = r * rand(0.025, 0.05);
+      const dx = Math.cos(a) * d, dy = Math.sin(a) * d;
+      c.fillStyle = 'rgba(210,255,235,0.55)';
+      c.beginPath(); c.arc(dx, dy, dr, 0, TAU); c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.9)';
+      c.beginPath(); c.arc(dx - dr * 0.3, dy - dr * 0.3, dr * 0.35, 0, TAU); c.fill();
+    }
+    this.sprite = sp;
+  }
+  draw(c) {
+    c.drawImage(this.sprite, this.x - this.sprite.width / 2, this.y - this.sprite.height / 2);
   }
 }
 
@@ -560,11 +596,13 @@ class Flower {
     c.save();
     c.translate(this.x, this.y);
     c.rotate(this.rot);
-    for (let layer = 0; layer < 2; layer++) {
-      const n = layer === 0 ? 7 : 6;
-      const rr = this.r * (layer === 0 ? 1 : 0.62);
+    c.fillStyle = 'rgba(2,40,30,0.2)';
+    c.beginPath(); c.ellipse(this.r * 0.15, this.r * 0.25, this.r * 1.05, this.r * 0.95, 0, 0, TAU); c.fill();
+    for (let layer = 0; layer < 3; layer++) {
+      const n = layer === 0 ? 8 : 7;
+      const rr = this.r * [1, 0.72, 0.45][layer];
       for (let i = 0; i < n; i++) {
-        const a = (i / n) * TAU + layer * 0.5;
+        const a = (i / n) * TAU + layer * 0.4;
         const grd = c.createLinearGradient(0, 0, Math.cos(a) * rr, Math.sin(a) * rr);
         grd.addColorStop(0, '#ffb3ad');
         grd.addColorStop(1, '#e02338');
@@ -624,20 +662,30 @@ class Shrub {
     this.sprite = document.createElement('canvas');
     this.sprite.width = this.sprite.height = R * 2;
     const x2 = this.sprite.getContext('2d');
-    const leaves = 12 + Math.floor(rand(0, 8));
+    const leaves = 22 + Math.floor(rand(0, 10));
     for (let i = 0; i < leaves; i++) {
       const a = rand(0, TAU);
-      const d = rand(0.15, 0.85) * r;
-      const lx = R + Math.cos(a) * d, ly = R + Math.sin(a) * d * 0.85;
-      const lr = r * rand(0.18, 0.34);
-      const g2 = Math.floor(rand(70, 140));
-      x2.fillStyle = `rgba(${Math.floor(g2 * 0.35)},${g2},${Math.floor(g2 * 0.45)},${rand(0.75, 0.95)})`;
+      const d = Math.pow(rand(0, 1), 0.8) * 0.8 * r;
+      const lx = R + Math.cos(a) * d, ly = R + Math.sin(a) * d;
+      const L = r * rand(0.35, 0.62), Wd = L * rand(0.28, 0.4);
+      const g2 = rand(70, 150);
       x2.save();
       x2.translate(lx, ly);
-      x2.rotate(a);
+      x2.rotate(a + rand(-0.4, 0.4));
+      x2.fillStyle = 'rgba(2,40,30,0.14)';
+      x2.beginPath(); x2.ellipse(L * 0.55 + 3, 4, L * 0.55, Wd, 0, 0, TAU); x2.fill();
+      const gr = x2.createLinearGradient(0, -Wd, 0, Wd);
+      gr.addColorStop(0, `rgb(${g2 * 0.5},${g2 * 1.25 > 220 ? 220 : g2 * 1.25},${g2 * 0.5})`);
+      gr.addColorStop(1, `rgb(${g2 * 0.2},${g2 * 0.7},${g2 * 0.3})`);
+      x2.fillStyle = gr;
       x2.beginPath();
-      x2.ellipse(0, 0, lr * 1.5, lr * 0.7, 0, 0, TAU);
+      x2.moveTo(0, 0);
+      x2.quadraticCurveTo(L * 0.4, -Wd * 1.5, L, 0);
+      x2.quadraticCurveTo(L * 0.4, Wd * 1.5, 0, 0);
       x2.fill();
+      x2.strokeStyle = 'rgba(210,245,170,0.35)';
+      x2.lineWidth = Math.max(0.6, L * 0.03);
+      x2.beginPath(); x2.moveTo(0, 0); x2.lineTo(L * 0.92, 0); x2.stroke();
       x2.restore();
     }
   }
@@ -848,7 +896,7 @@ if (settingsBtn && panel) {
 // ---------- setup + main loop ----------
 let fish = [];
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  DPR = Math.min(window.devicePixelRatio || 1, 1.5);
   W = Math.floor(innerWidth * DPR);
   H = Math.floor(innerHeight * DPR);
   canvas.width = W;
@@ -870,14 +918,18 @@ setTimeout(() => addRipple(W * 0.3, H * 0.4), 400);
 setTimeout(() => addRipple(W * 0.7, H * 0.6), 900);
 
 let last = performance.now();
+let frameN = 0, Q = 2, avg = 16, lastQ = 0;
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   const t = now / 1000;
+  avg += ((now - (frame.prev || now)) - avg) * 0.08; frame.prev = now;
+  if (now - lastQ > 1500) { lastQ = now; if (avg > 42 && Q > 0) Q--; else if (avg < 20 && Q < 2 && now - lastQ > 6000) Q++; }
 
   ctx.drawImage(bg, 0, 0);
 
-  renderCaustics(t);
+  if (Q > 0 && (frameN++ & (Q === 2 ? 1 : 3)) === 0) renderCaustics(t);
   const causticAlpha = state.time === 'night' ? 0.18 : state.weather === 'cloudy' ? 0.34 : state.time === 'sunset' ? 0.52 : 0.5;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
@@ -900,8 +952,6 @@ function frame(now) {
   vg.addColorStop(1, 'rgba(0,40,40,0.28)');
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, W, H);
-
-  requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
 
