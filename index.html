@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Koi Pond</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<canvas id="pond"></canvas>
+<div id="hint">touch the water</div>
+<button id="settingsBtn" aria-label="Settings">&#9881;</button>
+<div id="panel" class="hidden">
+  <div class="row"><span>Weather</span>
+    <div class="opts">
+      <button data-weather="sunny">Sunny</button>
+      <button data-weather="cloudy">Cloudy</button>
+      <button data-weather="rain">Rain</button>
+    </div>
+  </div>
+  <div class="row"><span>Time</span>
+    <div class="opts">
+      <button data-time="day">Day</button>
+      <button data-time="sunset">Sunset</button>
+      <button data-time="night">Night</button>
+    </div>
+  </div>
+</div>
+<script src="js/pond.js"></script>
+</body>
+</html>
