@@ -2,7 +2,7 @@
 
 An interactive, procedurally animated koi pond that runs entirely in your browser. No libraries, no build step, no assets - every fish, lily pad and ripple is drawn and animated by code on a plain HTML canvas.
 
-![Koi Pond](screenshot.png)
+![Koi Pond](screenshot-rich.png)
 
 ## Run it
 
