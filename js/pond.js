@@ -23,12 +23,29 @@ function renderBg() {
   bg.width = W; bg.height = H;
   const b = bg.getContext('2d');
   const g = b.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
-  g.addColorStop(0, '#57e8ab');
-  g.addColorStop(0.45, '#35d195');
-  g.addColorStop(0.8, '#18a87a');
-  g.addColorStop(1, '#0c7c5c');
+  g.addColorStop(0, '#497b70');
+  g.addColorStop(0.45, '#35675f');
+  g.addColorStop(0.8, '#254e48');
+  g.addColorStop(1, '#132e2c');
   b.fillStyle = g;
   b.fillRect(0, 0, W, H);
+  // Cached bottom: gravel, silt and shallow shelves, not per-frame noise.
+  for (let i = 0; i < Math.min(14000, W * H / 160); i++) {
+    const x = rand(0, W), y = rand(0, H), r = rand(0.6, 3.4) * DPR;
+    b.fillStyle = pick(['rgba(196,180,132,.09)', 'rgba(9,32,30,.2)', 'rgba(143,159,126,.16)']);
+    b.beginPath(); b.ellipse(x, y, r * 1.5, r, rand(0, TAU), 0, TAU); b.fill();
+  }
+  // Submerged grasses lie below fish and surface plants.
+  for (let i = 0; i < 46; i++) {
+    const x = rand(0, W), y = rand(0, H);
+    if (Math.min(x, y, W-x, H-y) > Math.min(W,H)*.24) continue;
+    for(let j=0;j<7;j++) {
+      const dx=rand(-45,45)*DPR, dy=rand(-75,15)*DPR;
+      b.strokeStyle = pick(['rgba(14,52,37,.28)','rgba(100,130,68,.22)']);
+      b.lineWidth=rand(1,3)*DPR; b.beginPath(); b.moveTo(x,y);
+      b.quadraticCurveTo(x+dx*.2,y+dy*.8,x+dx,y+dy); b.stroke();
+    }
+  }
   for (let i = 0; i < 26; i++) {
     const x = rand(0, W), y = rand(0, H), r = rand(60, 260) * DPR;
     const rg = b.createRadialGradient(x, y, 0, x, y, r);
@@ -81,23 +98,23 @@ const luminance = (hex) => {
 // Koi silhouette from above: blunt snout, fullest just behind the head,
 // then a long taper into a slim tail wrist.
 function bodyWidth(t) {
-  const tp = 0.30;
+  const tp = 0.26;
   if (t < tp) {
     const u = t / tp;
-    return 0.42 + 0.58 * Math.pow(Math.sin(u * Math.PI / 2), 0.85);
+    return 0.48 + 0.52 * Math.pow(Math.sin(u * Math.PI / 2), 0.85);
   }
   const u = (t - tp) / (1 - tp);
-  return 1 - 0.80 * Math.pow(u, 1.45);
+  return 1 - 0.91 * Math.pow(u, 1.08);
 }
 
 const PALETTES = [
-  { base: '#fbf7ec', patches: ['#d83527'] },                    // kohaku (red on white)
-  { base: '#fbf7ec', patches: ['#d83527', '#ef7d24'] },         // kohaku-orange
-  { base: '#ef7d24', patches: ['#fbf7ec'] },                    // hi (white on orange)
-  { base: '#2a2a30', patches: ['#d83527', '#f2eee2'] },         // showa (red/white on black)
-  { base: '#f2eee2', patches: ['#2a2a30', '#d83527'] },         // calico
+  { base: '#e9e3ce', patches: ['#b74726'] },                    // kohaku (red on white)
+  { base: '#e9e3ce', patches: ['#b74726', '#c77528'] },         // kohaku-orange
+  { base: '#c77528', patches: ['#e9e3ce'] },                    // hi (white on orange)
+  { base: '#2a2a30', patches: ['#b74726', '#f2eee2'] },         // showa (red/white on black)
+  { base: '#f2eee2', patches: ['#2a2a30', '#b74726'] },         // calico
   { base: '#f2eee2', patches: ['#2a2a30'] },                    // shiro utsuri (black on white)
-  { base: '#e9c64f', patches: ['#f6e7a8', '#d8a928'] },         // yamabuki (golden)
+  { base: '#c9a94d', patches: ['#f6e7a8', '#d8a928'] },         // yamabuki (golden)
 ];
 
 // soft-edged, irregular marking rendered once, then blitted each frame
@@ -112,7 +129,7 @@ function makePatchSprite(color, r) {
     const br = r * rand(0.55, 1.0);
     const g = x.createRadialGradient(bx, by, br * 0.3, bx, by, br);
     g.addColorStop(0, color);
-    g.addColorStop(0.82, color);
+    g.addColorStop(0.91, color);
     g.addColorStop(1, hexA(color, 0));
     x.fillStyle = g;
     x.beginPath(); x.arc(bx, by, br, 0, TAU); x.fill();
@@ -180,13 +197,18 @@ class Koi {
     this.x = rand(W * 0.15, W * 0.85);
     this.y = rand(H * 0.15, H * 0.85);
     this.angle = rand(0, TAU);
-    this.len = rand(54, 96) * DPR;
+    this.len = rand(82, 130) * DPR * Math.max(.78,Math.min(1,Math.min(W,H)/(500*DPR)));
     this.segs = 14;
     this.spacing = this.len / this.segs;
-    this.fat = rand(0.17, 0.2);
+    this.fat = rand(0.115, 0.145);
     this.baseSpeed = rand(24, 44) * DPR;
     this.speed = this.baseSpeed;
     this.turn = rand(-1, 1);
+    this.angularVelocity = 0;
+    this.bursting = false;
+    this.energy = rand(.15, 1);
+    this.clock = rand(0,100);
+    this.wakeClock = 0;
     this.phase = rand(0, TAU);
     this.dart = 0;
     this.depth = rand(0, 1);                 // swim depth: tint + shadow offset
@@ -197,7 +219,7 @@ class Koi {
       ? 'rgba(80,80,70,0.07)'
       : 'rgba(255,255,255,0.06)';
     this.finColor = this.palette.base;
-    this.sheen = makeGlowSprite('rgba(255,255,255,0.55)', Math.ceil(this.halfW * 2.2));
+    this.sheen = makeGlowSprite('#ffffff', Math.ceil(this.halfW * 2.2));
     this.finPhase = rand(0, TAU);
     this.spine = [];
     for (let i = 0; i <= this.segs; i++) {
@@ -217,34 +239,51 @@ class Koi {
   }
 
   update(dt, pointer) {
-    this.turn += (rand(-1, 1) - this.turn * 0.55) * dt * 1.6;
-    let steer = this.turn * 0.5;
-
-    const m = Math.min(W, H) * 0.13;
-    const distWall = Math.min(this.x, this.y, W - this.x, H - this.y);
-    if (distWall < m) {
-      const away = Math.atan2(H / 2 - this.y, W / 2 - this.x);
-      steer += angleDiff(away, this.angle) * (1 - Math.max(0, distWall) / m) * 2.4;
+    this.clock += dt;
+    // Correlated wander and a damped angular response avoid twitchy random turns.
+    this.turn += (-this.turn * .8 + Math.sin(this.clock*.51 + this.finPhase)*.7) * dt;
+    let steer = this.turn * .38;
+    const m = Math.min(W,H)*.18 + this.len*.3;
+    for (const [d, away] of [[this.x,0], [W-this.x,Math.PI], [this.y,Math.PI/2], [H-this.y,-Math.PI/2]]) {
+      if(d<m) steer += angleDiff(away,this.angle)*Math.pow(1-Math.max(0,d)/m,2)*3;
     }
-
-    if (pointer.active) {
-      const dx = pointer.x - this.x, dy = pointer.y - this.y;
-      const d = Math.hypot(dx, dy);
-      if (d > this.len * 1.4) {
-        const want = Math.atan2(dy, dx);
-        steer += angleDiff(want, this.angle) * 1.5 * Math.min(1, (320 * DPR) / d);
-      }
+    // Local separation dominates alignment. Koi gather loosely, not as a rigid school.
+    let sx=0, sy=0, ax=0, ay=0, count=0;
+    for(const other of fish) {
+      if(other===this) continue;
+      const dx=this.x-other.x, dy=this.y-other.y, d=Math.hypot(dx,dy);
+      if(d<this.len*1.2 && d>0) { const force=(1-d/(this.len*1.2)); sx+=dx/d*force; sy+=dy/d*force; }
+      if(d<this.len*2.5) { ax+=Math.cos(other.angle); ay+=Math.sin(other.angle); count++; }
     }
-
-    this.angle += steer * dt * 2.6;
-
-    this.dart = Math.max(0, this.dart - dt * 1.8);
-    const target = this.baseSpeed * (1 + this.dart * 3.4);
-    this.speed += (target - this.speed) * Math.min(1, dt * 3);
-    this.phase += dt * (2.0 + this.speed / (13 * DPR));
-
-    this.x += Math.cos(this.angle) * this.speed * dt;
-    this.y += Math.sin(this.angle) * this.speed * dt;
+    if(Math.hypot(sx,sy)>.02) steer+=angleDiff(Math.atan2(sy,sx),this.angle)*Math.min(1.8,Math.hypot(sx,sy)*2);
+    if(count) steer+=angleDiff(Math.atan2(ay,ax),this.angle)*.12;
+    if(pointer.active && !this.dart) {
+      const dx=pointer.x-this.x, dy=pointer.y-this.y, d=Math.hypot(dx,dy);
+      if(d>this.len*.95) steer+=angleDiff(Math.atan2(dy,dx),this.angle)*.8*Math.min(1,300*DPR/d);
+    }
+    const maxTurn = this.dart>.2 ? 2.5 : .95;
+    const targetTurn=Math.max(-maxTurn,Math.min(maxTurn,steer));
+    this.angularVelocity+=(targetTurn-this.angularVelocity)*(1-Math.exp(-dt*3));
+    this.angle+=this.angularVelocity*dt;
+    this.dart=Math.max(0,this.dart-dt*.8);
+    // Burst-and-coast with separate start/stop thresholds (hysteresis).
+    this.energy += dt*(this.bursting ? -.55 : .2);
+    if(this.energy>.9) this.bursting=true;
+    if(this.energy<.25) this.bursting=false;
+    const target=this.baseSpeed*((this.bursting ? 1.3 : .65)+this.dart*3);
+    this.speed+=(target-this.speed)*(1-Math.exp(-dt*1.8));
+    this.phase+=dt*(this.bursting || this.dart>.1 ? 5.5+this.speed/(20*DPR) : 1.9);
+    const currentX=Math.sin(this.y/(190*DPR)+this.clock*.12)*1.5*DPR;
+    const currentY=Math.cos(this.x/(230*DPR)-this.clock*.1)*DPR;
+    this.x+= (Math.cos(this.angle)*this.speed+currentX)*dt;
+    this.y+= (Math.sin(this.angle)*this.speed+currentY)*dt;
+    this.x=Math.max(8*DPR,Math.min(W-8*DPR,this.x));
+    this.y=Math.max(8*DPR,Math.min(H-8*DPR,this.y));
+    this.wakeClock+=dt;
+    if(this.depth<.4 && this.wakeClock>.5 && this.speed>this.baseSpeed*1.15) {
+      this.wakeClock=0;
+      ripples.push({x:this.x,y:this.y,r:this.halfW*.7,max:this.len*.42,a:.09,w:.7*DPR});
+    }
 
     this.spine[0].x = this.x;
     this.spine[0].y = this.y;
@@ -262,9 +301,9 @@ class Koi {
     for (let i = 0; i <= this.segs; i++) {
       const p = this.spine[i];
       const q = this.spine[Math.max(0, i - 1)];
-      const ang = Math.atan2(p.y - q.y, p.x - q.x);
+      const ang = i === 0 ? this.angle + Math.PI : Math.atan2(p.y - q.y, p.x - q.x);
       // traveling wave: head stays almost still, the tail sweeps wide
-      const amp = this.spacing * (0.05 + 0.5 * Math.pow(i / this.segs, 1.6));
+      const amp = this.spacing * (0.01 + (this.bursting ? 1.05 : .48) * Math.pow(i / this.segs, 2));
       const sway = Math.sin(this.phase - i * 0.62) * amp;
       pts.push({
         x: p.x + Math.cos(ang + Math.PI / 2) * sway,
@@ -302,8 +341,8 @@ class Koi {
     const tail = pts[this.segs];
     const flutter = Math.sin(this.phase - this.segs * 0.62) * 0.22;
     const ang = tail.ang + flutter;
-    const tl = this.len * 0.36;
-    const spread = 0.46;
+    const tl = this.len * 0.27;
+    const spread = 0.54;
     const dx = Math.cos(ang), dy = Math.sin(ang);
     const tipA = { x: tail.x + Math.cos(ang + spread) * tl, y: tail.y + Math.sin(ang + spread) * tl };
     const tipB = { x: tail.x + Math.cos(ang - spread) * tl, y: tail.y + Math.sin(ang - spread) * tl };
@@ -365,7 +404,7 @@ class Koi {
       drawFanFin(
         c,
         pec.x + nx * pecW * 0.55 * s, pec.y + ny * pecW * 0.55 * s,
-        fa, this.len * 0.3, 1.0, 0.62, this.finColor
+        fa, this.len * 0.205, 1.12, 0.48, this.finColor
       );
     }
     const pel = pts[8];
@@ -411,6 +450,13 @@ class Koi {
       c.drawImage(pa.sprite, -R, -R, R * 2, R * 2);
       c.restore();
     }
+
+    // A continuous cross-body gradient avoids visible segment bands.
+    const lit=pts[4], ln=Math.cos(lit.ang+Math.PI/2), lm=Math.sin(lit.ang+Math.PI/2);
+    const shade=c.createLinearGradient(lit.x-ln*this.halfW,lit.y-lm*this.halfW,lit.x+ln*this.halfW,lit.y+lm*this.halfW);
+    shade.addColorStop(0,'rgba(8,24,20,.3)');shade.addColorStop(.35,'rgba(255,248,215,.08)');
+    shade.addColorStop(.55,'rgba(255,248,222,.16)');shade.addColorStop(1,'rgba(8,24,20,.27)');
+    c.fillStyle=shade;c.fill(path);
 
     if (Q > 0) {
     // sheen along the back
@@ -478,7 +524,14 @@ class Koi {
       c.fillStyle = 'rgba(255,255,255,0.75)';
       c.beginPath(); c.arc(ex - this.len * 0.005, ey - this.len * 0.005, Math.max(0.5, this.len * 0.006), 0, TAU); c.fill();
     }
-    const mx = head.x + Math.cos(head.ang) * 2 * DPR, my = head.y + Math.sin(head.ang) * 2 * DPR;
+    const gill=pts[3];
+    c.strokeStyle='rgba(47,47,31,.24)'; c.lineWidth=.7*DPR;
+    for(const side of [-1,1]) {
+      c.beginPath();
+      c.moveTo(gill.x+hnx*headW*.35*side,gill.y+hny*headW*.35*side);
+      c.quadraticCurveTo(gill.x-Math.cos(gill.ang)*this.len*.035+hnx*headW*.65*side,gill.y-Math.sin(gill.ang)*this.len*.035+hny*headW*.65*side,gill.x+hnx*headW*.94*side,gill.y+hny*headW*.94*side); c.stroke();
+    }
+    const mx = head.x - Math.cos(head.ang) * DPR, my = head.y - Math.sin(head.ang) * DPR;
     c.strokeStyle = 'rgba(60,30,25,0.5)';
     c.lineWidth = Math.max(0.8, DPR * 0.9);
     c.beginPath();
@@ -488,13 +541,13 @@ class Koi {
     c.lineWidth = Math.max(0.7, DPR * 0.8);
     for (const s of [-1, 1]) {
       const bx = head.x + hnx * headW * 0.5 * s, by = head.y + hny * headW * 0.5 * s;
-      const tipx = head.x + Math.cos(head.ang + s * 0.9) * this.len * 0.075;
-      const tipy = head.y + Math.sin(head.ang + s * 0.9) * this.len * 0.075;
+      const tipx = head.x + Math.cos(head.ang + Math.PI + s * 0.9) * this.len * 0.075;
+      const tipy = head.y + Math.sin(head.ang + Math.PI + s * 0.9) * this.len * 0.075;
       c.beginPath();
       c.moveTo(bx, by);
       c.quadraticCurveTo(
-        head.x + Math.cos(head.ang + s * 0.5) * this.len * 0.06,
-        head.y + Math.sin(head.ang + s * 0.5) * this.len * 0.06,
+        head.x + Math.cos(head.ang + Math.PI + s * 0.5) * this.len * 0.06,
+        head.y + Math.sin(head.ang + Math.PI + s * 0.5) * this.len * 0.06,
         tipx, tipy
       );
       c.stroke();
@@ -524,6 +577,27 @@ function drawRipples(c, dt) {
 
 // ---------- lily pads, lotus flowers, drifting petals ----------
 let pads = [], flowers = [], petals = [], shrubs = [];
+const bank=document.createElement('canvas');
+function buildBank() {
+  bank.width=W; bank.height=H; const c=bank.getContext('2d');
+  const perimeter=2*(W+H), step=35*DPR;
+  for(let d=0;d<perimeter;d+=step*rand(.8,1.2)) {
+    let x,y;
+    if(d<W){x=d;y=rand(-7,7)*DPR;}
+    else if(d<W+H){x=W+rand(-7,7)*DPR;y=d-W;}
+    else if(d<2*W+H){x=2*W+H-d;y=H+rand(-7,7)*DPR;}
+    else{x=rand(-7,7)*DPR;y=perimeter-d;}
+    const r=rand(22,43)*DPR, path=new Path2D();
+    for(let j=0;j<10;j++){const a=j/10*TAU,rr=r*rand(.8,1.15);const px=x+Math.cos(a)*rr,py=y+Math.sin(a)*rr*.72;if(j===0)path.moveTo(px,py);else path.lineTo(px,py);}
+    path.closePath();
+    c.save();c.translate(5*DPR,7*DPR);c.fillStyle='rgba(3,19,17,.4)';c.fill(path);c.restore();
+    const g=c.createLinearGradient(x-r,y-r,x+r,y+r);g.addColorStop(0,'#8b8c75');g.addColorStop(.35,'#666f60');g.addColorStop(1,'#303e37');
+    c.fillStyle=g;c.fill(path);c.strokeStyle='rgba(193,186,152,.2)';c.lineWidth=DPR;c.stroke(path);
+    c.save();c.clip(path);
+    for(let j=0;j<45;j++){c.fillStyle=pick(['rgba(15,26,21,.18)','rgba(210,201,163,.15)','rgba(56,79,36,.35)']);c.fillRect(x+rand(-r,r),y+rand(-r,r),rand(1,4)*DPR,rand(1,3)*DPR);}
+    c.restore();
+  }
+}
 
 class Pad {
   constructor(x, y, r) {
@@ -711,13 +785,13 @@ function buildScenery() {
   const sideN = Math.max(3, Math.round(H / (220 * DPR * scale)));
   for (let i = 0; i < topN; i++) {
     const x = ((i + rand(-0.3, 0.7)) / topN) * W;
-    putPad(x, rand(-30, band * 0.6) * DPR * 0.9, true);
-    putPad(x + rand(-50, 50) * DPR, H - rand(-30, band * 0.55) * DPR * 0.9, true);
+    putPad(x, rand(-30*DPR, band * 0.45), true);
+    putPad(x + rand(-50, 50) * DPR, H - rand(-30*DPR, band * 0.4), true);
   }
   for (let i = 0; i < sideN; i++) {
     const y = ((i + rand(-0.3, 0.7)) / sideN) * H;
-    putPad(rand(-30, band * 0.55) * DPR * 0.9, y, true);
-    putPad(W - rand(-30, band * 0.55) * DPR * 0.9, y + rand(-50, 50) * DPR, true);
+    putPad(rand(-30*DPR, band * 0.4), y, true);
+    putPad(W - rand(-30*DPR, band * 0.4), y + rand(-50, 50) * DPR, true);
   }
   // a few small pads out in the open water
   const openN = Math.round(3 * scale) + 2;
@@ -729,7 +803,7 @@ function buildScenery() {
   const shrubN = Math.round(14 * scale) + 8;
   for (let i = 0; i < shrubN; i++) {
     const edge = Math.floor(rand(0, 4));
-    const inset = rand(-14, band * 0.8) * DPR * 0.9;
+    const inset = rand(-14*DPR, band * 0.35);
     let x, y;
     if (edge === 0) { x = rand(0, W); y = inset; }
     else if (edge === 1) { x = rand(0, W); y = H - inset; }
@@ -745,7 +819,7 @@ function buildScenery() {
     flowers.push(new Flower(p.x + rand(-14, 14) * DPR, p.y + rand(-14, 14) * DPR, rand(10, 18) * DPR * scale));
   }
 
-  for (let i = 0; i < 18; i++) petals.push(new Petal());
+  for (let i = 0; i < 9; i++) petals.push(new Petal());
 }
 
 // ---------- pointer interaction ----------
@@ -755,6 +829,7 @@ let lastRippleAt = 0;
 function hideHint() { if (hint) hint.classList.add('hidden'); }
 
 canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
   pointer.x = e.clientX * DPR;
   pointer.y = e.clientY * DPR;
   pointer.active = true;
@@ -784,6 +859,7 @@ function endPointer(e) {
 }
 canvas.addEventListener('pointerup', endPointer);
 canvas.addEventListener('pointercancel', () => { pointer.active = false; });
+canvas.addEventListener('lostpointercapture', () => { pointer.active = false; });
 
 
 // ---------- weather & time of day ----------
@@ -796,6 +872,8 @@ try {
 const qp = new URLSearchParams(location.search);
 if (qp.get('weather')) state.weather = qp.get('weather');
 if (qp.get('time')) state.time = qp.get('time');
+if(!['sunny','cloudy','rain'].includes(state.weather)) state.weather='sunny';
+if(!['day','sunset','night'].includes(state.time)) state.time='day';
 
 function saveState() {
   try { localStorage.setItem('koi-pond-settings', JSON.stringify(state)); } catch (e) {}
@@ -815,7 +893,7 @@ function buildFireflies() {
 function updateWeather(dt) {
   if (state.weather === 'rain') {
     for (let i = 0; i < 2; i++) {
-      if (Math.random() < 0.55) {
+      if (Math.random() < 1-Math.exp(-dt*45)) {
         ripples.push({
           x: rand(0, W), y: rand(0, H),
           r: 2 * DPR, max: rand(18, 42) * DPR, a: 0.5, w: rand(1, 1.8) * DPR,
@@ -896,6 +974,7 @@ if (settingsBtn && panel) {
 // ---------- setup + main loop ----------
 let fish = [];
 function resize() {
+  const oldW=W,oldH=H,oldDPR=DPR;
   DPR = Math.min(window.devicePixelRatio || 1, 1.5);
   W = Math.floor(innerWidth * DPR);
   H = Math.floor(innerHeight * DPR);
@@ -903,14 +982,21 @@ function resize() {
   canvas.height = H;
   canvas.style.width = innerWidth + 'px';
   canvas.style.height = innerHeight + 'px';
+  if(oldW && fish.length) for(const f of fish) {
+    const sx=W/oldW,sy=H/oldH,scale=DPR/oldDPR;
+    f.x*=sx;f.y*=sy; f.len*=scale;f.halfW*=scale;f.spacing*=scale;f.baseSpeed*=scale;f.speed*=scale;
+    for(let i=0;i<=f.segs;i++) {f.spine[i].x=f.x-Math.cos(f.angle)*i*f.spacing;f.spine[i].y=f.y-Math.sin(f.angle)*i*f.spacing;}
+    f.patches=makePatches(f.palette,f.segs,f.halfW);
+  }
   renderBg();
   buildScenery();
+  buildBank();
   buildFireflies();
 }
 addEventListener('resize', resize);
 resize();
 
-const fishCount = Math.max(9, Math.min(18, Math.round((W * H) / (100000 * DPR * DPR))));
+const fishCount = Math.max(7, Math.min(12, Math.round((W * H) / (100000 * DPR * DPR))));
 for (let i = 0; i < fishCount; i++) fish.push(new Koi());
 
 // a few welcoming ripples
@@ -925,20 +1011,25 @@ function frame(now) {
   last = now;
   const t = now / 1000;
   avg += ((now - (frame.prev || now)) - avg) * 0.08; frame.prev = now;
-  if (now - lastQ > 1500) { lastQ = now; if (avg > 42 && Q > 0) Q--; else if (avg < 20 && Q < 2 && now - lastQ > 6000) Q++; }
+  if(now-lastQ>6000 && avg<20 && Q<2){Q++;lastQ=now;}
+  else if(now-lastQ>1500 && avg>38 && Q>0){Q--;lastQ=now;}
 
   ctx.drawImage(bg, 0, 0);
 
   if (Q > 0 && (frameN++ & (Q === 2 ? 1 : 3)) === 0) renderCaustics(t);
-  const causticAlpha = state.time === 'night' ? 0.18 : state.weather === 'cloudy' ? 0.34 : state.time === 'sunset' ? 0.52 : 0.5;
+  const causticAlpha = state.time === 'night' ? 0.08 : state.weather === 'cloudy' ? 0.12 : state.time === 'sunset' ? 0.20 : 0.22;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   ctx.globalAlpha = causticAlpha;
   ctx.drawImage(cvs, 0, 0, W, H);
   ctx.restore();
 
-  for (const f of fish) { f.update(dt, pointer); f.draw(ctx); }
+  // Bounded substeps keep steering and spine constraints stable after a slow frame.
+  const steps=Math.max(1,Math.ceil(dt/(1/60)));
+  for(let i=0;i<steps;i++) for(const f of fish) f.update(dt/steps,pointer);
+  for(const f of [...fish].sort((a,b)=>b.depth-a.depth)) f.draw(ctx);
   for (const p of pads) p.draw(ctx);
+  ctx.drawImage(bank,0,0);
   for (const sh of shrubs) sh.draw(ctx);
   for (const fl of flowers) fl.draw(ctx);
   for (const pe of petals) { pe.update(dt); pe.draw(ctx); }
@@ -956,5 +1047,5 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 // console/testing handle
-window.koiPond = { state, ripples, fish, addRipple };
+window.koiPond = { state, ripples, fish, addRipple, get quality(){return Q;}, get frameMs(){return avg;}, version: 4 };
 })();
