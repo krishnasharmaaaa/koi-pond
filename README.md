@@ -37,16 +37,16 @@ Your choice is saved in the browser. You can also share a configured pond via UR
 - **Spine-based animation**: a fish is a chain of spine points that follow the head, with a traveling wave layered on top - the head stays almost still while the tail sweeps wide, like a real swimming fish. The body, fins and markings are drawn around that spine every frame, and each fish swims at its own depth with a matching shadow and underwater tint.
 - **Behavior**: fish wander with smooth noise steering, avoid the edges, are attracted to an active touch point, and dart away when startled.
 - **Water**: a layered radial-gradient background plus real-time light caustics computed per-pixel on a small offscreen buffer and composited with `screen` blending.
-- **Scenery**: lily pads with notches and veins, two-layer lotus flowers, and drifting petals, all regenerated procedurally on every resize.
+- **Scenery**: dense clusters of dark lily pads along the edges, leafy margin plants, red lotus flowers, drifting petals and fallen autumn leaves, all regenerated procedurally on every resize.
 - **Weather & time**: rain generates live ripples; sunset and night regrade the whole scene; fireflies come out at night.
-- **Light and sharp**: zero dependencies, one small offscreen buffer for the light effects, wide-gamut (Display-P3) color where the browser supports it, and vector rendering that stays crisp on high-DPI and 4K screens.
+- **Self-contained**: zero dependencies, one small offscreen buffer for the light effects, wide-gamut (Display-P3) color where the browser supports it, and vector rendering that stays crisp on high-DPI and 4K screens.
 
 ## Files
 
 ```
 index.html      - entry point
 css/style.css   - page and hint styling
-js/pond.js      - the whole simulation (~840 lines)
+js/pond.js      - the whole simulation (~910 lines)
 ```
 
 ## Note
