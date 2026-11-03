@@ -24,25 +24,25 @@ function renderBg() {
   bg.width = W; bg.height = H;
   const b = bg.getContext('2d');
   const g = b.createRadialGradient(W * 0.5, H * 0.42, 0, W * 0.5, H * 0.5, Math.max(W, H) * 0.75);
-  g.addColorStop(0, '#42dcc4');
-  g.addColorStop(0.45, '#2cc2ac');
-  g.addColorStop(0.8, '#149c8e');
-  g.addColorStop(1, '#0b756c');
+  g.addColorStop(0, '#57e8ab');
+  g.addColorStop(0.45, '#35d195');
+  g.addColorStop(0.8, '#18a87a');
+  g.addColorStop(1, '#0c7c5c');
   b.fillStyle = g;
   b.fillRect(0, 0, W, H);
   for (let i = 0; i < 26; i++) {
     const x = rand(0, W), y = rand(0, H), r = rand(60, 260) * DPR;
     const rg = b.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, 'rgba(5,55,55,0.10)');
-    rg.addColorStop(1, 'rgba(5,55,55,0)');
+    rg.addColorStop(0, 'rgba(4,58,36,0.12)');
+    rg.addColorStop(1, 'rgba(4,58,36,0)');
     b.fillStyle = rg;
     b.beginPath(); b.arc(x, y, r, 0, TAU); b.fill();
   }
   for (let i = 0; i < 18; i++) {
     const x = rand(0, W), y = rand(0, H), r = rand(40, 200) * DPR;
     const rg = b.createRadialGradient(x, y, 0, x, y, r);
-    rg.addColorStop(0, 'rgba(190,255,240,0.07)');
-    rg.addColorStop(1, 'rgba(190,255,240,0)');
+    rg.addColorStop(0, 'rgba(215,255,225,0.09)');
+    rg.addColorStop(1, 'rgba(215,255,225,0)');
     b.fillStyle = rg;
     b.beginPath(); b.arc(x, y, r, 0, TAU); b.fill();
   }
@@ -113,7 +113,7 @@ function makePatchSprite(color, r) {
     const br = r * rand(0.55, 1.0);
     const g = x.createRadialGradient(bx, by, br * 0.3, bx, by, br);
     g.addColorStop(0, color);
-    g.addColorStop(0.72, color);
+    g.addColorStop(0.82, color);
     g.addColorStop(1, hexA(color, 0));
     x.fillStyle = g;
     x.beginPath(); x.arc(bx, by, br, 0, TAU); x.fill();
@@ -504,7 +504,7 @@ function drawRipples(c, dt) {
 }
 
 // ---------- lily pads, lotus flowers, drifting petals ----------
-let pads = [], flowers = [], petals = [];
+let pads = [], flowers = [], petals = [], shrubs = [];
 
 class Pad {
   constructor(x, y, r) {
@@ -514,7 +514,7 @@ class Pad {
     this.shade = rand(-12, 12);
   }
   draw(c) {
-    const g = 96 + this.shade;
+    const g = 58 + this.shade;
     c.save();
     c.translate(this.x, this.y);
     c.rotate(this.rot);
@@ -524,7 +524,7 @@ class Pad {
     c.ellipse(4 * DPR, 7 * DPR, this.r, this.r * 0.92, 0, 0, TAU);
     c.fill();
     // pad
-    c.fillStyle = `rgb(${34 + this.shade},${g},${62 + this.shade})`;
+    c.fillStyle = `rgb(${14 + this.shade},${g},${30 + this.shade})`;
     c.beginPath();
     c.moveTo(0, 0);
     c.arc(0, 0, this.r, this.notch / 2, TAU - this.notch / 2);
@@ -532,8 +532,8 @@ class Pad {
     c.fill();
     // lighter center
     const rg = c.createRadialGradient(0, 0, 0, 0, 0, this.r);
-    rg.addColorStop(0, 'rgba(140,220,150,0.35)');
-    rg.addColorStop(1, 'rgba(140,220,150,0)');
+    rg.addColorStop(0, 'rgba(110,190,120,0.30)');
+    rg.addColorStop(1, 'rgba(110,190,120,0)');
     c.fillStyle = rg;
     c.beginPath();
     c.moveTo(0, 0);
@@ -541,7 +541,7 @@ class Pad {
     c.closePath();
     c.fill();
     // veins
-    c.strokeStyle = 'rgba(20,70,45,0.45)';
+    c.strokeStyle = 'rgba(6,32,18,0.55)';
     c.lineWidth = Math.max(1, this.r * 0.03);
     for (let i = 0; i < 9; i++) {
       const a = this.notch / 2 + 0.25 + (i / 9) * (TAU - this.notch - 0.5);
@@ -566,8 +566,8 @@ class Flower {
       for (let i = 0; i < n; i++) {
         const a = (i / n) * TAU + layer * 0.5;
         const grd = c.createLinearGradient(0, 0, Math.cos(a) * rr, Math.sin(a) * rr);
-        grd.addColorStop(0, '#fff0f5');
-        grd.addColorStop(1, '#f26d9e');
+        grd.addColorStop(0, '#ffb3ad');
+        grd.addColorStop(1, '#e02338');
         c.fillStyle = grd;
         c.save();
         c.rotate(a);
@@ -593,6 +593,11 @@ class Petal {
     this.vr = rand(-0.4, 0.4);
     this.vx = rand(-6, 6) * DPR;
     this.vy = rand(-4, 4) * DPR;
+    this.leaf = Math.random() < 0.3;
+    if (this.leaf) this.r *= rand(1.6, 2.4);
+    this.color = this.leaf
+      ? pick(['rgba(226,132,36,0.9)', 'rgba(204,102,30,0.9)', 'rgba(160,150,60,0.9)'])
+      : 'rgba(249,168,197,0.85)';
   }
   update(dt) {
     this.x += this.vx * dt; this.y += this.vy * dt;
@@ -604,7 +609,7 @@ class Petal {
     c.save();
     c.translate(this.x, this.y);
     c.rotate(this.rot);
-    c.fillStyle = 'rgba(249,168,197,0.85)';
+    c.fillStyle = this.color;
     c.beginPath();
     c.ellipse(0, 0, this.r * 1.5, this.r * 0.8, 0, 0, TAU);
     c.fill();
@@ -612,27 +617,87 @@ class Petal {
   }
 }
 
+class Shrub {
+  constructor(x, y, r) {
+    this.x = x; this.y = y; this.r = r;
+    const R = Math.ceil(r * 2.2);
+    this.sprite = document.createElement('canvas');
+    this.sprite.width = this.sprite.height = R * 2;
+    const x2 = this.sprite.getContext('2d');
+    const leaves = 12 + Math.floor(rand(0, 8));
+    for (let i = 0; i < leaves; i++) {
+      const a = rand(0, TAU);
+      const d = rand(0.15, 0.85) * r;
+      const lx = R + Math.cos(a) * d, ly = R + Math.sin(a) * d * 0.85;
+      const lr = r * rand(0.18, 0.34);
+      const g2 = Math.floor(rand(70, 140));
+      x2.fillStyle = `rgba(${Math.floor(g2 * 0.35)},${g2},${Math.floor(g2 * 0.45)},${rand(0.75, 0.95)})`;
+      x2.save();
+      x2.translate(lx, ly);
+      x2.rotate(a);
+      x2.beginPath();
+      x2.ellipse(0, 0, lr * 1.5, lr * 0.7, 0, 0, TAU);
+      x2.fill();
+      x2.restore();
+    }
+  }
+  draw(c) {
+    c.drawImage(this.sprite, this.x - this.sprite.width / 2, this.y - this.sprite.height / 2);
+  }
+}
+
 function buildScenery() {
-  pads = []; flowers = []; petals = [];
-  const scale = Math.min(W, H) / (900 * DPR);
-  const padCount = Math.round(11 * scale) + 6;
-  for (let i = 0; i < padCount; i++) {
-    // cluster pads toward the edges
+  pads = []; flowers = []; petals = []; shrubs = [];
+  const scale = Math.max(0.7, Math.min(W, H) / (900 * DPR));
+  const band = 0.26 * Math.min(W, H);
+
+  // dense clusters of large dark pads along every edge, a few drifting inward
+  const putPad = (x, y, big) => {
+    const r = (big ? rand(38, 76) : rand(20, 42)) * DPR * scale;
+    pads.push(new Pad(x, y, r));
+    if (Math.random() < 0.55) {
+      pads.push(new Pad(x + rand(-r * 1.6, r * 1.6), y + rand(-r * 1.2, r * 1.2), r * rand(0.5, 0.85)));
+    }
+  };
+  const topN = Math.max(4, Math.round(W / (220 * DPR * scale)));
+  const sideN = Math.max(3, Math.round(H / (220 * DPR * scale)));
+  for (let i = 0; i < topN; i++) {
+    const x = ((i + rand(-0.3, 0.7)) / topN) * W;
+    putPad(x, rand(-30, band * 0.6) * DPR * 0.9, true);
+    putPad(x + rand(-50, 50) * DPR, H - rand(-30, band * 0.55) * DPR * 0.9, true);
+  }
+  for (let i = 0; i < sideN; i++) {
+    const y = ((i + rand(-0.3, 0.7)) / sideN) * H;
+    putPad(rand(-30, band * 0.55) * DPR * 0.9, y, true);
+    putPad(W - rand(-30, band * 0.55) * DPR * 0.9, y + rand(-50, 50) * DPR, true);
+  }
+  // a few small pads out in the open water
+  const openN = Math.round(3 * scale) + 2;
+  for (let i = 0; i < openN; i++) {
+    putPad(rand(W * 0.25, W * 0.75), rand(H * 0.25, H * 0.75), false);
+  }
+
+  // leafy shrubs filling the margins between pads
+  const shrubN = Math.round(14 * scale) + 8;
+  for (let i = 0; i < shrubN; i++) {
     const edge = Math.floor(rand(0, 4));
+    const inset = rand(-14, band * 0.8) * DPR * 0.9;
     let x, y;
-    const inset = rand(-20, 0.28 * Math.min(W, H));
     if (edge === 0) { x = rand(0, W); y = inset; }
     else if (edge === 1) { x = rand(0, W); y = H - inset; }
     else if (edge === 2) { x = inset; y = rand(0, H); }
     else { x = W - inset; y = rand(0, H); }
-    pads.push(new Pad(x, y, rand(22, 52) * DPR * Math.max(0.7, scale)));
+    shrubs.push(new Shrub(x, y, rand(26, 52) * DPR * scale));
   }
-  const flowerCount = Math.round(3 * scale) + 2;
+
+  // red lotus flowers resting on pads
+  const flowerCount = Math.round(5 * scale) + 4;
   for (let i = 0; i < flowerCount; i++) {
     const p = pads[Math.floor(rand(0, pads.length))];
-    flowers.push(new Flower(p.x + rand(-14, 14) * DPR, p.y + rand(-14, 14) * DPR, rand(10, 17) * DPR));
+    flowers.push(new Flower(p.x + rand(-14, 14) * DPR, p.y + rand(-14, 14) * DPR, rand(10, 18) * DPR * scale));
   }
-  for (let i = 0; i < 10; i++) petals.push(new Petal());
+
+  for (let i = 0; i < 18; i++) petals.push(new Petal());
 }
 
 // ---------- pointer interaction ----------
@@ -797,7 +862,7 @@ function resize() {
 addEventListener('resize', resize);
 resize();
 
-const fishCount = Math.max(7, Math.min(14, Math.round((W * H) / (140000 * DPR * DPR))));
+const fishCount = Math.max(9, Math.min(18, Math.round((W * H) / (100000 * DPR * DPR))));
 for (let i = 0; i < fishCount; i++) fish.push(new Koi());
 
 // a few welcoming ripples
@@ -813,7 +878,7 @@ function frame(now) {
   ctx.drawImage(bg, 0, 0);
 
   renderCaustics(t);
-  const causticAlpha = state.time === 'night' ? 0.14 : state.weather === 'cloudy' ? 0.26 : state.time === 'sunset' ? 0.44 : 0.38;
+  const causticAlpha = state.time === 'night' ? 0.18 : state.weather === 'cloudy' ? 0.34 : state.time === 'sunset' ? 0.52 : 0.5;
   ctx.save();
   ctx.globalCompositeOperation = 'screen';
   ctx.globalAlpha = causticAlpha;
@@ -822,6 +887,7 @@ function frame(now) {
 
   for (const f of fish) { f.update(dt, pointer); f.draw(ctx); }
   for (const p of pads) p.draw(ctx);
+  for (const sh of shrubs) sh.draw(ctx);
   for (const fl of flowers) fl.draw(ctx);
   for (const pe of petals) { pe.update(dt); pe.draw(ctx); }
   updateWeather(dt);
